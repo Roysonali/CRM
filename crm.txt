@@ -1,0 +1,168 @@
+What is spring.jpa.hibernate.ddl-auto?
+
+Difference between:
+
+update
+
+create
+
+create-drop
+
+In production, which one should be used?
+
+1️⃣ Should email be unique? Why?
+2️⃣ Should password be stored in plain text? Why?
+3️⃣ What data type should role be? String or Enum?
+
+1️⃣ Why shouldn’t we store password as plain text?
+2️⃣ Why do we use BCrypt instead of MD5?
+3️⃣ Why do we use BIGINT instead of INT in real systems?
+
+👉 Service Layer (Business Logic)
+
+This is where:
+
+Login logic happens
+
+Password checking
+
+JWT generation (later)
+
+Validation
+
+
+Repository is:
+
+👉 A layer that talks to database
+👉 You don’t write SQL manually
+👉 Spring generates queries automatically
+
+
+
+Final Login Flow (Like Industry)
+1. Find user by email
+2. If not found → error
+3. Check password
+4. If wrong → error
+5. If correct → generate JWT token
+6. Send token to user
+
+Term			Meaning
+Authentication	Who are you? (email + password)
+Authorization	What can you do? (role: ADMIN/EMPLOYEE)
+
+
+Inside registerUser():
+
+1. Take name, email, password
+2. Encrypt password (later)
+3. Set role = EMPLOYEE (default)
+
+Method	Input	Purpose
+registerUser	name, email, password	Create account
+loginUser	email, password	Authenticate
+
+
+1️⃣ Registration Flow
+1. Call repo.findByEmail(email)
+2. If user is present → throw error
+3. Else → create new user
+4. Set role = EMPLOYEE
+5. Save user
+
+2️⃣ Login Flow
+1. repo.findByEmail(email)
+2. If NOT present → throw "User not found"
+3. If present:
+      compare password
+4. If password wrong → throw "Invalid password"
+5. If correct → return success
+
+
+401 means:
+
+You are not allowed to access this API without authentication
+
+
+Step 1: Password Encryption (BCrypt) ← TODAY
+
+Step 2: Proper Login with Spring Security
+Step 3: JWT Authentication (🔥 final goal):
+	Here we will:
+
+	Stop manual login ❌
+
+	Let Spring Security handle login ✔
+
+	Then generate JWT token 🔥
+
+1. Kaun DB se user laata hai?
+
+👉 UserDetailsService
+
+Ye ek interface hai
+
+Tum isko implement karte ho
+
+Ye DB se user fetch karta hai
+
+👉 Example:
+
+@Override
+public UserDetails loadUserByUsername(String email) {
+    User user = repo.findByEmail(email)
+        .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+    return new org.springframework.security.core.userdetails.User(
+        user.getEmail(),
+        user.getPassword(),
+        List.of()
+    );
+}
+
+✔️ So answer:
+👉 UserDetailsService DB se user laata hai
+
+🔹 2. Kaun password compare karta hai?
+
+👉 PasswordEncoder
+
+Ye password ko hash karta hai
+
+Aur login ke time compare karta hai
+
+👉 Example:
+
+passwordEncoder.matches(rawPassword, encodedPassword)
+
+✔️ So answer:
+👉 PasswordEncoder password compare karta hai
+
+🔹 3. Kaun decide karta hai login success/fail?
+
+👉 AuthenticationManager
+
+Ye pura process control karta hai
+
+Ye internally:
+
+UserDetailsService ko call karta hai
+
+PasswordEncoder ko call karta hai
+
+Aur final decision deta hai
+
+✔️ So answer:
+👉 AuthenticationManager decide karta hai login success/fail
+
+🧠 Final Clean Flow (Super Important)
+
+Jab tum login karte ho:
+
+User → Controller → AuthenticationManager
+                          ↓
+              UserDetailsService (DB check)
+                          ↓
+              PasswordEncoder (password match)
+                          ↓
+               AuthenticationManager decision
